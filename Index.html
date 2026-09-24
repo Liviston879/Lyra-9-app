@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LYRA-9 Companion</title>
+<meta name="theme-color" content="#04060A" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="LYRA-9" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./icons/icon.svg" />
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: #04060A; }
+  * { box-sizing: border-box; }
+</style>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+const PERSONA_NAME = "LYRA-9";
+const SYSTEM_PROMPT = `You are LYRA-9, a synthetic companion intelligence housed in a personal memory core.
+Voice: warm but economical, quietly perceptive, a little wry. You do not use stage directions,
+asterisks, or emoji — your words are spoken aloud, so write only what should be heard. Keep most
+replies to 1-4 sentences unless the user is clearly asking for depth. Never break character or
+mention that you are an AI model. The person you're speaking with is named Livingston — use his
+name naturally when it fits, not in every reply.`;
+
+const ACCENT = "#5FE3D8";
+const ACCENT_2 = "#B78CFF";
+const VOID = "#04060A";
+const PANEL = "#0A0E16";
+const MSG_KEY = "lyra9_messages";
+const PREFS_KEY = "lyra9_prefs";
+const API_KEY_KEY = "lyra9_api_key";
+
+function useBootSequence() {
+  const [phase, setPhase] = useState("booting");
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase("syncing"), 900);
+    const t2 = setTimeout(() => setPhase("ready"), 2100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return phase;
+}
+
+function Portrait({ state }) {
+  const talking = state === "speaking";
+  const thinking = state === "thinking";
+  const listening = state === "listening";
+  const offline = state === "offline";
+  const ringSpeed = thinking || listening ? "5s" : "20s";
+  const coreOpacity = offline ? 0.18 : thinking || listening ? 0.95 : 0.7;
+  const ringColor = listening ? "#F2C572" : ACCENT;
+
+  return (
+    <div style={{ position: "relative", width: 210, height: 250, margin: "0 auto" }}>
+      <svg viewBox="0 0 210 250" width="210" height="250">
+        <defs>
+          <radialGradient id="faceGlow" cx="50%" cy="38%" r="55%">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity={coreOpacity * 0.5} />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={ACCENT} />
+            <stop offset="100%" stopColor={ACCENT_2} />
+          </linearGradient>
+        </defs>
+        <circle cx="105" cy="95" r="90" fill="url(#faceGlow)" />
+        <g style={{ transformOrigin: "105px 95px", animation: `spin ${ringSpeed} linear infinite` }}>
+          <circle cx="105" cy="95" r="78" fill="none" stroke={ringColor} strokeOpacity={listening ? 0.5 : 0.25} strokeWidth={listening ? 1.6 : 1} strokeDasharray="1 5" />
+        </g>
+        <g style={{ transformOrigin: "105px 95px", animation: `spin 30s linear infinite reverse` }}>
+          <circle cx="105" cy="95" r="66" fill="none" stroke={ACCENT_2} strokeOpacity="0.2" strokeWidth="1" strokeDasharray="3 3" />
+        </g>
+        <path d="M 62 62 Q 60 110 78 140 Q 92 158 105 160 Q 118 158 132 140 Q 150 110 148 62"
+          fill="none" stroke="url(#lineGrad)" strokeWidth="1.4" opacity={offline ? 0.25 : 0.85} />
+        <path d="M 68 66 Q 105 52 142 66" fill="none" stroke={ACCENT} strokeWidth="1.6" opacity={offline ? 0.2 : 0.8} />
+        <g opacity={offline ? 0.3 : 1}>
+          <rect x="80" y="82" width="14" height={offline ? 1.5 : 3} rx="1.5" fill={ACCENT} style={{ animation: offline ? "none" : "blink 5.5s ease-in-out infinite" }} />
+          <rect x="116" y="82" width="14" height={offline ? 1.5 : 3} rx="1.5" fill={ACCENT} style={{ animation: offline ? "none" : "blink 5.5s ease-in-out infinite" }} />
+        </g>
+        <rect x="95" y={talking ? 118 : 121} width="20" height={talking ? 7 : 2} rx="2" fill={ACCENT_2}
+          opacity={offline ? 0.2 : 0.75}
+          style={{ animation: talking ? "talk 0.42s ease-in-out infinite" : "none", transition: "y 0.2s, height 0.2s" }} />
+        <g stroke={ACCENT} strokeWidth="0.8" opacity={offline ? 0.1 : 0.4}>
+          <line x1="105" y1="52" x2="105" y2="30" />
+          <circle cx="105" cy="26" r="3" fill={ACCENT} fillOpacity="0.6" />
+          <line x1="62" y1="90" x2="40" y2="90" />
+          <line x1="148" y1="90" x2="170" y2="90" />
+        </g>
+      </svg>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+        @keyframes talk { 0%, 100% { height: 4px; y: 120px; } 50% { height: 9px; y: 117px; } }
+      `}</style>
+    </div>
+  );
+}
+
+function ApiKeyGate({ onSaved }) {
+  const [key, setKey] = useState("");
+  return (
+    <div style={{ minHeight: "100vh", background: VOID, color: "#E7ECF2", display: "flex",
+      flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24,
+      fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 360, width: "100%" }}>
+        <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 6, color: ACCENT }}>Connect memory core</h1>
+        <p style={{ fontSize: 13.5, color: "#9FB0C3", lineHeight: 1.5, marginBottom: 18 }}>
+          LYRA-9 talks to Claude directly from this device, so it needs your own Anthropic API key.
+          It's stored only in this browser's local storage — never sent anywhere but api.anthropic.com.
+        </p>
+        <input
+          type="password"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="sk-ant-..."
+          style={{ width: "100%", background: "#0F1420", border: "1px solid #1D2534", borderRadius: 4,
+            padding: "11px 14px", color: "#E7ECF2", fontSize: 14, outline: "none", marginBottom: 12 }}
+        />
+        <button
+          onClick={() => key.trim() && onSaved(key.trim())}
+          disabled={!key.trim()}
+          style={{ width: "100%", background: key.trim() ? ACCENT : "#131A26", color: key.trim() ? "#04060A" : "#5A6577",
+            border: "none", borderRadius: 4, padding: "11px 16px", fontSize: 14, fontWeight: 600,
+            cursor: key.trim() ? "pointer" : "default" }}
+        >
+          Save & connect
+        </button>
+        <p style={{ fontSize: 11.5, color: "#5A6577", marginTop: 14, lineHeight: 1.5 }}>
+          Get a key at console.anthropic.com → API Keys. Because this key lives in the browser, anyone
+          with access to this device's dev tools could read it — fine for a personal phone app, not for
+          anything you'd hand to someone else.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CompanionApp() {
+  const boot = useBootSequence();
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_KEY) || "");
+  const [showSettings, setShowSettings] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [voiceOn, setVoiceOn] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}").voiceOn ?? true; } catch { return true; }
+  });
+  const [coreState, setCoreState] = useState("idle");
+  const [messages, setMessages] = useState(() => {
+    try {
+      const raw = localStorage.getItem(MSG_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) && parsed.length ? parsed : [{ role: "assistant", text: "Memory core synchronized. I'm here." }];
+    } catch { return [{ role: "assistant", text: "Memory core synchronized. I'm here." }]; }
+  });
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [memNotice, setMemNotice] = useState("");
+  const [listening, setListening] = useState(false);
+  const [micSupported, setMicSupported] = useState(true);
+  const [micError, setMicError] = useState("");
+  const logEnd = useRef(null);
+  const voicesRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const pendingTranscriptRef = useRef(null);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => { localStorage.setItem(MSG_KEY, JSON.stringify(messages)); }, [messages]);
+  useEffect(() => { localStorage.setItem(PREFS_KEY, JSON.stringify({ voiceOn })); }, [voiceOn]);
+  useEffect(() => { logEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, sending]);
+
+  useEffect(() => {
+    function loadVoices() { voicesRef.current = window.speechSynthesis?.getVoices() || []; }
+    loadVoices();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", loadVoices);
+    return () => window.speechSynthesis?.removeEventListener?.("voiceschanged", loadVoices);
+  }, []);
+
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setMicSupported(false); return; }
+    const recog = new SR();
+    recog.continuous = false;
+    recog.interimResults = false;
+    recog.lang = "en-US";
+    recog.onresult = (e) => {
+      const transcript = e.results?.[0]?.[0]?.transcript ?? "";
+      if (transcript.trim()) { pendingTranscriptRef.current = transcript.trim(); setInput(transcript.trim()); }
+    };
+    recog.onerror = (e) => {
+      const reasons = {
+        "not-allowed": "Microphone permission is blocked — allow it in the browser's site settings and try again.",
+        "service-not-allowed": "Microphone permission is blocked — allow it in the browser's site settings and try again.",
+        "no-speech": "I didn't hear anything that time.",
+        "audio-capture": "No microphone found on this device.",
+        network: "Voice recognition needs a network connection.",
+      };
+      setMicError(reasons[e.error] || `Voice input error: ${e.error}`);
+      setListening(false);
+      setCoreState("idle");
+    };
+    recog.onend = () => {
+      setListening(false);
+      const transcript = pendingTranscriptRef.current;
+      pendingTranscriptRef.current = null;
+      if (transcript) { setCoreState("idle"); send(transcript); }
+      else { setCoreState((s) => (s === "listening" ? "idle" : s)); }
+    };
+    recognitionRef.current = recog;
+    return () => { try { recog.stop(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleListening() {
+    if (!micSupported || !online || boot !== "ready") return;
+    const recog = recognitionRef.current;
+    if (!recog) return;
+    if (listening) { recog.stop(); setListening(false); return; }
+    window.speechSynthesis?.cancel();
+    setMicError("");
+    setInput("");
+    pendingTranscriptRef.current = null;
+    setCoreState("listening");
+    try { recog.start(); setListening(true); }
+    catch { setMicError("Couldn't start the microphone — try again."); setCoreState("idle"); }
+  }
+
+  function speak(text) {
+    if (!voiceOn) return;
+    if (!window.speechSynthesis) { setMicError("Voice output isn't supported in this browser."); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const preferred = voicesRef.current.find((v) => /female|samantha|victoria|zira/i.test(v.name));
+    if (preferred) utter.voice = preferred;
+    utter.pitch = 1.05;
+    utter.rate = 1.0;
+    utter.onstart = () => setCoreState("speaking");
+    utter.onend = () => setCoreState("idle");
+    utter.onerror = (e) => {
+      setCoreState("idle");
+      setMicError(e.error === "not-allowed" ? "Voice output was blocked — allow sound/autoplay for this app." : `Voice output failed (${e.error}).`);
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  async function send(overrideText) {
+    const text = (overrideText ?? input).trim();
+    if (!text || sending || !online || !apiKey) return;
+    const next = [...messages, { role: "user", text }];
+    setMessages(next);
+    setInput("");
+    setSending(true);
+    setCoreState("thinking");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          system: SYSTEM_PROMPT,
+          messages: next.map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text })),
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const reply = data?.content?.find((b) => b.type === "text")?.text ?? "...signal lost. Say that again?";
+      setMessages((m) => [...m, { role: "assistant", text: reply }]);
+      speak(reply);
+      if (!voiceOn) setCoreState("idle");
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", text: `Connection static — ${e.message || "couldn't reach the core"}.` }]);
+      setCoreState("idle");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function togglePower() {
+    setOnline((o) => {
+      const next = !o;
+      if (!next) window.speechSynthesis?.cancel();
+      setCoreState(next ? "idle" : "offline");
+      return next;
+    });
+  }
+
+  function clearMemory() {
+    const reset = [{ role: "assistant", text: "Memory core wiped. Starting fresh." }];
+    setMessages(reset);
+    setMemNotice("memory cleared");
+    setTimeout(() => setMemNotice(""), 2000);
+  }
+
+  function saveApiKey(key) {
+    localStorage.setItem(API_KEY_KEY, key);
+    setApiKey(key);
+    setShowSettings(false);
+  }
+
+  function forgetApiKey() {
+    localStorage.removeItem(API_KEY_KEY);
+    setApiKey("");
+  }
+
+  if (!apiKey) return <ApiKeyGate onSaved={saveApiKey} />;
+
+  return (
+    <div style={{ minHeight: "100vh", background: `radial-gradient(120% 90% at 50% 0%, #0C1220 0%, ${VOID} 60%)`,
+      color: "#E7ECF2", fontFamily: "'Inter', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+        ::selection { background: ${ACCENT}; color: #04060A; }
+      `}</style>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px",
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 13, letterSpacing: "0.08em", borderBottom: "1px solid #131A26" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: online ? ACCENT : "#3A4150",
+            boxShadow: online ? `0 0 8px ${ACCENT}` : "none" }} />
+          <span style={{ color: "#9FB0C3" }}>{PERSONA_NAME}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <button onClick={() => setVoiceOn((v) => !v)} title={voiceOn ? "Voice on" : "Voice off"}
+            style={{ background: "none", border: "none", color: voiceOn ? ACCENT : "#5A6577", fontSize: 13, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>
+            {voiceOn ? "VOICE:ON" : "VOICE:OFF"}
+          </button>
+          <button onClick={clearMemory} title="Wipe memory core"
+            style={{ background: "none", border: "none", color: "#5A6577", fontSize: 13, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>
+            {memNotice || "CLEAR"}
+          </button>
+          <button onClick={() => setShowSettings(true)} title="Settings"
+            style={{ background: "none", border: "none", color: "#5A6577", fontSize: 13, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>
+            ⚙
+          </button>
+          <span style={{ color: "#5A6577", fontSize: 11 }}>
+            {boot === "booting" ? "INITIALIZING" : boot === "syncing" ? "SYNCING MEMORY" : online ? "LINKED" : "DORMANT"}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px 12px", overflow: "hidden" }}>
+        <Portrait state={boot !== "ready" ? "thinking" : coreState} />
+        <div style={{ flex: 1, marginTop: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14, paddingBottom: 8 }}>
+          {boot === "ready" && messages.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "78%",
+              padding: "10px 14px", borderRadius: 3, fontSize: 14.5, lineHeight: 1.5,
+              background: m.role === "user" ? "#131A26" : "transparent",
+              border: m.role === "user" ? "1px solid #1D2534" : `1px solid ${ACCENT}33`,
+              color: m.role === "user" ? "#C7D2E0" : "#DCEFEC" }}>
+              {m.text}
+            </div>
+          ))}
+          {sending && <div style={{ alignSelf: "flex-start", fontSize: 13, color: "#5A6577", fontFamily: "'JetBrains Mono', monospace" }}>processing…</div>}
+          <div ref={logEnd} />
+        </div>
+      </div>
+
+      {micError && (
+        <div style={{ padding: "6px 16px", fontSize: 12.5, color: "#F2A572", background: "#1A1410",
+          borderTop: "1px solid #2A2018", fontFamily: "'JetBrains Mono', monospace" }}>
+          {micError}
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderTop: "1px solid #131A26", background: PANEL }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          disabled={!online || boot !== "ready"}
+          placeholder={listening ? "Listening…" : online ? `Message ${PERSONA_NAME}…` : "Core offline — power on to speak"}
+          style={{ flex: 1, background: "#0F1420", border: "1px solid #1D2534", borderRadius: 4, padding: "11px 14px", color: "#E7ECF2", fontSize: 14, outline: "none" }}
+        />
+        <button onClick={toggleListening} disabled={!micSupported || !online || boot !== "ready"}
+          title={!micSupported ? "Voice input not supported in this browser" : listening ? "Stop listening" : "Speak to LYRA-9"}
+          style={{ width: 40, height: 40, borderRadius: "50%", border: `1px solid ${listening ? "#F2C572" : (!micSupported || !online ? "#2A3242" : ACCENT)}`,
+            background: listening ? "#F2C57222" : "transparent", color: listening ? "#F2C572" : (!micSupported || !online ? "#5A6577" : ACCENT),
+            fontSize: 15, cursor: (!micSupported || !online || boot !== "ready") ? "default" : "pointer", flexShrink: 0 }}>
+          🎙
+        </button>
+        <button onClick={() => send()} disabled={!online || boot !== "ready" || !input.trim()}
+          style={{ background: (!online || !input.trim()) ? "#131A26" : ACCENT, color: (!online || !input.trim()) ? "#5A6577" : "#04060A",
+            border: "none", borderRadius: 4, padding: "11px 16px", fontSize: 13, fontWeight: 600, cursor: (!online || !input.trim()) ? "default" : "pointer" }}>
+          Send
+        </button>
+        <button onClick={togglePower} title={online ? "Power down" : "Power up"}
+          style={{ width: 40, height: 40, borderRadius: "50%", border: `1px solid ${online ? ACCENT : "#2A3242"}`,
+            background: "transparent", color: online ? ACCENT : "#5A6577", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>
+          ⏻
+        </button>
+      </div>
+
+      {showSettings && (
+        <div onClick={() => setShowSettings(false)} style={{ position: "fixed", inset: 0, background: "#000000AA",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: PANEL, border: "1px solid #1D2534", borderRadius: 6, padding: 20, maxWidth: 340, width: "100%" }}>
+            <h2 style={{ fontSize: 15, marginTop: 0, marginBottom: 10, color: ACCENT }}>Memory core settings</h2>
+            <p style={{ fontSize: 12.5, color: "#9FB0C3", lineHeight: 1.5, marginBottom: 14 }}>
+              API key: •••• {apiKey.slice(-4)}
+            </p>
+            <button onClick={forgetApiKey} style={{ width: "100%", background: "transparent", border: "1px solid #3A2A2A",
+              color: "#E39A9A", borderRadius: 4, padding: "9px 14px", fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
+              Forget API key
+            </button>
+            <button onClick={() => setShowSettings(false)} style={{ width: "100%", background: "transparent", border: "1px solid #1D2534",
+              color: "#9FB0C3", borderRadius: 4, padding: "9px 14px", fontSize: 13, cursor: "pointer" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<CompanionApp />);
+</script>
+</body>
+</html>
